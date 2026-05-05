@@ -71,7 +71,7 @@ import {
 
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const normalizeSaudiMobile = (value: string) => value.replace(/[\s-]/g, "");
+const normalizeSaudiMobile = (value: string) => value.replace(/\D/g, "").slice(0, 10);
 const isValidSaudiMobile = (value: string) => /^05\d{8}$/.test(normalizeSaudiMobile(value));
 
 export default function UsersManagement() {
@@ -459,11 +459,11 @@ function InviteUserDialog({
       toast.error("يرجى إدخال الاسم الكامل");
       return;
     }
-    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+    if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
       toast.error("يرجى إدخال بريد إلكتروني صحيح.");
       return;
     }
-    if (mobile.trim() && !isValidSaudiMobile(mobile.trim())) {
+    if (!mobile.trim() || !isValidSaudiMobile(mobile.trim())) {
       toast.error("رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05.");
       return;
     }
@@ -532,14 +532,22 @@ function InviteUserDialog({
 
           {/* Email */}
           <div className="space-y-2">
-            <Label>البريد الإلكتروني</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" dir="ltr" />
+            <Label>البريد الإلكتروني *</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" dir="ltr" required />
           </div>
 
           {/* Mobile */}
           <div className="space-y-2">
-            <Label>الجوال</Label>
-            <Input value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="05xxxxxxxx" dir="ltr" />
+            <Label>الجوال *</Label>
+            <Input
+              value={mobile}
+              onChange={(e) => setMobile(normalizeSaudiMobile(e.target.value))}
+              placeholder="05xxxxxxxx"
+              dir="ltr"
+              inputMode="numeric"
+              maxLength={10}
+              required
+            />
           </div>
 
           <Separator />
@@ -778,11 +786,11 @@ function AddMembershipDialog({ open, userId, onClose }: { open: boolean; userId:
   const resetForm = () => { setOrgId(""); setBranchId(""); setDeptId(""); setRoleId(""); setIsPrimary(false); setIsActive(true); };
 
   const handleSave = async () => {
-    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+    if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
       toast.error("يرجى إدخال بريد إلكتروني صحيح.");
       return;
     }
-    if (mobile.trim() && !isValidSaudiMobile(mobile.trim())) {
+    if (!mobile.trim() || !isValidSaudiMobile(mobile.trim())) {
       toast.error("رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05.");
       return;
     }
@@ -863,11 +871,11 @@ function EditMembershipDialog({ open, membership, onClose }: { open: boolean; me
   const filteredRoles = (roles.data || []).filter((r: any) => r.organization_id === orgId);
 
   const handleSave = async () => {
-    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+    if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
       toast.error("يرجى إدخال بريد إلكتروني صحيح.");
       return;
     }
-    if (mobile.trim() && !isValidSaudiMobile(mobile.trim())) {
+    if (!mobile.trim() || !isValidSaudiMobile(mobile.trim())) {
       toast.error("رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05.");
       return;
     }
