@@ -69,6 +69,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const normalizeSaudiMobile = (value: string) => value.replace(/[\s-]/g, "");
+const isValidSaudiMobile = (value: string) => /^05\d{8}$/.test(normalizeSaudiMobile(value));
+
 export default function UsersManagement() {
   const { user } = useAuth();
   const { currentMembership } = useOrganization();
@@ -373,9 +378,9 @@ function InvitationsTable({
                               {
                                 onSuccess: (result: any) => {
                                   if (result?.emailConfigured === false) {
-                                    toast.warning("تم إنشاء رابط الدعوة، لكن إرسال البريد غير مفعّل بعد.");
+                                    toast.warning("تم إنشاء رابط الدعوة، لكن إرسال البريد غير مفعّل بعد. يمكنك نسخ الرابط يدويًا.");
                                   } else {
-                                    toast.success("تم إرسال الدعوة بنجاح");
+                                    toast.success("تم إرسال الدعوة بنجاح إلى البريد الإلكتروني.");
                                   }
                                 },
                                 onError: (e: any) => toast.error(e.message || "فشل إرسال الدعوة"),
@@ -454,6 +459,14 @@ function InviteUserDialog({
       toast.error("يرجى إدخال الاسم الكامل");
       return;
     }
+    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+      toast.error("يرجى إدخال بريد إلكتروني صحيح.");
+      return;
+    }
+    if (mobile.trim() && !isValidSaudiMobile(mobile.trim())) {
+      toast.error("رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05.");
+      return;
+    }
     if (!orgId || !roleId) {
       toast.error("يرجى اختيار الجهة والدور");
       return;
@@ -462,7 +475,7 @@ function InviteUserDialog({
       const result = await createInvitation.mutateAsync({
         full_name: fullName.trim(),
         email: email.trim() || undefined,
-        mobile: mobile.trim() || undefined,
+        mobile: mobile.trim() ? normalizeSaudiMobile(mobile.trim()) : undefined,
         organization_id: orgId,
         role_id: roleId,
         branch_id: branchId || undefined,
@@ -475,12 +488,16 @@ function InviteUserDialog({
       // Send email after successful creation
       if (email.trim()) {
         try {
-          await sendEmail.mutateAsync({
+          const emailRes = await sendEmail.mutateAsync({
             email: email.trim(),
             name: fullName.trim(),
             token: result.invitation_token,
           });
-          toast.success("تم إرسال الدعوة بنجاح");
+          if (emailRes?.emailConfigured === false) {
+            toast.warning("تم إنشاء رابط الدعوة، لكن إرسال البريد غير مفعّل بعد. يمكنك نسخ الرابط يدويًا.");
+          } else {
+            toast.success("تم إرسال الدعوة بنجاح إلى البريد الإلكتروني.");
+          }
         } catch (emailErr: any) {
           toast.warning("تعذر إرسال البريد، يمكنك نسخ الرابط يدويًا");
         }
@@ -761,6 +778,14 @@ function AddMembershipDialog({ open, userId, onClose }: { open: boolean; userId:
   const resetForm = () => { setOrgId(""); setBranchId(""); setDeptId(""); setRoleId(""); setIsPrimary(false); setIsActive(true); };
 
   const handleSave = async () => {
+    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+      toast.error("يرجى إدخال بريد إلكتروني صحيح.");
+      return;
+    }
+    if (mobile.trim() && !isValidSaudiMobile(mobile.trim())) {
+      toast.error("رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05.");
+      return;
+    }
     if (!orgId || !roleId) { toast.error("يرجى اختيار الجهة والدور"); return; }
     try {
       await createMembership.mutateAsync({
@@ -838,6 +863,14 @@ function EditMembershipDialog({ open, membership, onClose }: { open: boolean; me
   const filteredRoles = (roles.data || []).filter((r: any) => r.organization_id === orgId);
 
   const handleSave = async () => {
+    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+      toast.error("يرجى إدخال بريد إلكتروني صحيح.");
+      return;
+    }
+    if (mobile.trim() && !isValidSaudiMobile(mobile.trim())) {
+      toast.error("رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05.");
+      return;
+    }
     if (!orgId || !roleId) { toast.error("يرجى اختيار الجهة والدور"); return; }
     try {
       await updateMembership.mutateAsync({

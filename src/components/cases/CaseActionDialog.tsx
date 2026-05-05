@@ -50,7 +50,10 @@ export function CaseActionDialog({ open, onOpenChange, caseId, currentStepId }: 
   const allowedActions = allActions.filter((a) => hasPermission(a.permissionCode));
 
   const needsDepartment = selectedAction?.type === "transfer";
-  const needsStatus = selectedAction?.type === "reject";
+  const rejectTargetStep = selectedAction?.type === "reject" && selectedAction.transition && workflowSteps
+    ? resolveTransition(workflowSteps, currentStep, selectedAction.transition)
+    : null;
+  const needsStatus = selectedAction?.type === "reject" && !rejectTargetStep;
   
   // Check if this action leads to closure
   const isClosureAction = (() => {
@@ -90,7 +93,7 @@ export function CaseActionDialog({ open, onOpenChange, caseId, currentStepId }: 
       const targetStep = resolveTransition(workflowSteps, currentStep, selectedAction.transition);
       targetStepUUID = targetStep?.id;
       if (!targetStepUUID) {
-        toast({ title: "خطأ", description: "لا يوجد انتقال مهيأ لهذا الإجراء في مسار الحالة.", variant: "destructive" });
+        toast({ title: "خطأ", description: selectedAction.type === "reject" ? "لا يوجد انتقال مهيأ لإجراء الرفض في مسار الحالة." : "لا يوجد انتقال مهيأ لهذا الإجراء في مسار الحالة.", variant: "destructive" });
         return;
       }
     }
