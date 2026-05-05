@@ -94,13 +94,6 @@ export function useSendInvitationEmail() {
       const fnName = "send-invitation-email";
       const payload = { email: input.email, name: input.name, token: input.token };
 
-      console.log(`[SendInvitation] Invoking edge function: ${fnName}`, {
-        email: input.email,
-        name: input.name,
-        tokenPrefix: input.token?.substring(0, 8) + "...",
-      });
-
-      // Use VITE_SUPABASE_URL which matches the Cloud project where edge functions are deployed
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -111,9 +104,6 @@ export function useSendInvitationEmail() {
       }
 
       const url = `${baseUrl}/functions/v1/${fnName}`;
-      console.log(`[SendInvitation] URL: ${url}`);
-
-      // Get current session for auth
       const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
       if (sessionErr) {
         console.error("[SendInvitation] Failed to get session:", sessionErr);
@@ -132,7 +122,6 @@ export function useSendInvitationEmail() {
         });
 
         const responseText = await res.text();
-        console.log(`[SendInvitation] Response status: ${res.status}`, responseText);
 
         if (!res.ok) {
           let errMsg = `HTTP ${res.status}`;
@@ -151,7 +140,6 @@ export function useSendInvitationEmail() {
         }
 
         const result = JSON.parse(responseText);
-        console.log(`[SendInvitation] Success:`, result);
         return result;
       } catch (err: any) {
         console.error(`[SendInvitation] Fetch error for ${fnName}:`, {

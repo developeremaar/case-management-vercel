@@ -169,6 +169,19 @@ export function useCreateCase() {
       // 2) Create the case
       const caseNumber = `CASE-${Date.now()}`;
       const firstStep = workflowSteps?.length ? getFirstStep(workflowSteps) : null;
+      let derivedStatusId = formData.status_id;
+      if (!derivedStatusId) {
+        const { data: statuses } = await supabase
+          .from("case_statuses")
+          .select("id, code, name")
+          .eq("organization_id", orgId)
+          .order("created_at", { ascending: true });
+        const preferred =
+          statuses?.find((s: any) => s.code === "new" || s.code === "open") ||
+          statuses?.find((s: any) => s.name === "جديدة" || s.name === "مفتوحة") ||
+          statuses?.[0];
+        derivedStatusId = preferred?.id;
+      }
 
       // Remove beneficiary form fields before inserting into cases
       const { beneficiary_full_name, beneficiary_mobile, ...caseFields } = formData;
@@ -184,6 +197,7 @@ export function useCreateCase() {
         requested_amount: caseFields.requested_amount || null,
         current_step_id: firstStep?.id || null,
         beneficiary_id: beneficiaryId,
+        status_id: derivedStatusId || null,
       };
 
       console.log("[CreateCase] Inserting case with beneficiary_id:", beneficiaryId);
