@@ -22,7 +22,7 @@ type OrganizationRow = {
 
 export default function PlatformOrganizations() {
   const queryClient = useQueryClient();
-  const { isPlatformOwner } = useAuth();
+  const { isPlatformAdmin, isPlatformOwner } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -48,8 +48,15 @@ export default function PlatformOrganizations() {
 
     try {
       setIsSaving(true);
-      const payload: { name: string; logo_url: string | null } = {
+      if (!(isPlatformOwner || isPlatformAdmin)) {
+        toast.error("ليست لديك صلاحية إدارة الجهات. يجب أن تكون مالك منصة أو مدير منصة.");
+        return;
+      }
+
+      const slug = name.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/(^-|-$)/g, "");
+      const payload: { name: string; slug: string; logo_url: string | null } = {
         name: name.trim(),
+        slug: slug || `org-${Date.now()}` ,
         logo_url: logoUrl.trim() ? logoUrl.trim() : null,
       };
 
@@ -64,7 +71,12 @@ export default function PlatformOrganizations() {
       toast.success("تمت إضافة الجهة بنجاح");
     } catch (err) {
       console.error("Failed to create organization", err);
-      toast.error("تعذر حفظ الجهة. تأكد من الصلاحيات ثم حاول مرة أخرى.");
+      const msg = (err as any)?.message || "";
+      if (msg.toLowerCase().includes("row-level security") || msg.includes("permission")) {
+        toast.error("تعذر حفظ الجهة بسبب سياسات الصلاحيات (RLS). تأكد من امتلاك صلاحية مدير/مالك منصة.");
+      } else {
+        toast.error("تعذر حفظ الجهة. تأكد من الصلاحيات ثم حاول مرة أخرى.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -78,7 +90,7 @@ export default function PlatformOrganizations() {
           <p className="text-sm text-muted-foreground mt-1">عرض الجهات المتاحة ضمن نطاق صلاحيات المنصة الحالية.</p>
         </div>
 
-        {isPlatformOwner && (
+        {(isPlatformOwner || isPlatformAdmin) && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
