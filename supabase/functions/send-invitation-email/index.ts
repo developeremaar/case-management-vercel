@@ -4,47 +4,92 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+type InvitationPayload = {
+  email?: string;
+  name?: string;
+  token?: string;
+};
+
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
   try {
-    const { email, name, token } = await req.json();
+    const payload = (await req.json()) as InvitationPayload;
+
+    const email = payload.email?.trim();
+    const name = payload.name?.trim();
+    const token = payload.token?.trim();
 
     if (!email || !name || !token) {
-      return new Response(
-        JSON.stringify({ error: "email, name, and token are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonResponse(
+        { error: "email, name, and token are required" },
+        400
       );
     }
 
-    const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovable.app") || "";
-    const invitationLink = `${siteUrl}/accept-invitation?token=${token}`;
+    const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("APP_URL");
 
-    // For now, log the invitation details. 
-    // Replace with actual email sending (e.g., Resend, SendGrid) when ready.
+    if (!siteUrl) {
+      return jsonResponse(
+        {
+          error: "SITE_URL or APP_URL environment variable is required",
+        },
+        500
+      );
+    }
+
+    const normalizedSiteUrl = siteUrl.trim().replace(/\/+$/, "");
+
+    if (!normalizedSiteUrl) {
+      return jsonResponse(
+        {
+          error: "SITE_URL or APP_URL environment variable is invalid",
+        },
+        500
+      );
+    }
+
+    const invitationLink = `${normalizedSiteUrl}/accept-invitation?token=${encodeURIComponent(
+      token
+    )}`;
+
+    // For now, log the invitation details.
+    // Replace with actual email sending provider such as Resend or SendGrid when ready.
     console.log("=== SENDING INVITATION EMAIL ===");
     console.log("To:", email);
     console.log("Name:", name);
     console.log("Link:", invitationLink);
     console.log("================================");
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Invitation email queued for ${email}`,
-        link: invitationLink,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true,
+      message: `Invitation email queued for ${email}`,
+      link: invitationLink,
+    });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+
     console.error("send-invitation-email error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+
+    return jsonResponse({ error: message }, 500);
   }
 });
