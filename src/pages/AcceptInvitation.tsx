@@ -41,6 +41,12 @@ export default function AcceptInvitation() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    if (!success) return;
+    const t = window.setTimeout(() => navigate("/login"), 1500);
+    return () => window.clearTimeout(t);
+  }, [success, navigate]);
+
+  useEffect(() => {
     if (!token) {
       setInvalid(true);
       setInvalidMsg("رابط الدعوة غير صالح — لا يوجد رمز دعوة.");
@@ -93,6 +99,14 @@ export default function AcceptInvitation() {
     e.preventDefault();
     if (!invitation) return;
 
+    if (!password) {
+      toast.error("كلمة المرور مطلوبة");
+      return;
+    }
+    if (!confirmPassword) {
+      toast.error("تأكيد كلمة المرور مطلوب");
+      return;
+    }
     if (password.length < 6) {
       toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
       return;
@@ -198,7 +212,7 @@ export default function AcceptInvitation() {
               <CheckCircle className="h-12 w-12 text-primary" />
             </div>
             <CardTitle className="text-primary">تم قبول الدعوة بنجاح</CardTitle>
-            <CardDescription>تم إنشاء حسابك وعضويتك. يمكنك الآن تسجيل الدخول.</CardDescription>
+            <CardDescription>تم إنشاء حسابك وعضويتك بنجاح. سيتم تحويلك إلى صفحة تسجيل الدخول خلال لحظات.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => navigate("/login")}>تسجيل الدخول</Button>

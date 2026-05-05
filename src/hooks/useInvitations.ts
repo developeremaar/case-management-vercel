@@ -91,64 +91,15 @@ export function useCreateInvitation() {
 export function useSendInvitationEmail() {
   return useMutation({
     mutationFn: async (input: { email: string; name: string; token: string }) => {
-      const fnName = "send-invitation-email";
-      const payload = { email: input.email, name: input.name, token: input.token };
+      const { data, error } = await supabase.functions.invoke("send-invitation-email", {
+        body: { email: input.email, name: input.name, token: input.token },
+      });
 
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      if (!baseUrl || !anonKey) {
-        const msg = "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY";
-        console.error(`[SendInvitation] ${msg}`);
-        throw new Error(msg);
+      if (error) {
+        throw new Error(error.message || "فشل استدعاء خدمة إرسال الدعوة");
       }
 
-      const url = `${baseUrl}/functions/v1/${fnName}`;
-      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-      if (sessionErr) {
-        console.error("[SendInvitation] Failed to get session:", sessionErr);
-      }
-      const accessToken = sessionData?.session?.access_token;
-
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": anonKey,
-            "Authorization": `Bearer ${accessToken || anonKey}`,
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const responseText = await res.text();
-
-        if (!res.ok) {
-          let errMsg = `HTTP ${res.status}`;
-          try {
-            const errData = JSON.parse(responseText);
-            errMsg = errData.error || errData.message || errMsg;
-          } catch {
-            errMsg = responseText || errMsg;
-          }
-          console.error(`[SendInvitation] Edge function error:`, {
-            status: res.status,
-            error: errMsg,
-            functionName: fnName,
-          });
-          throw new Error(errMsg);
-        }
-
-        const result = responseText ? JSON.parse(responseText) : {};
-        return result;
-      } catch (err: any) {
-        console.error(`[SendInvitation] Fetch error for ${fnName}:`, {
-          message: err.message,
-          functionName: fnName,
-          url,
-        });
-        throw err;
-      }
+      return data ?? {};
     },
   });
 }
