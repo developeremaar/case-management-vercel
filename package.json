@@ -87,5 +87,9 @@
     "vite": "^5.4.19",
     "vitest": "^3.2.4"
   },
-  "packageManager": "npm@11.4.2"
+  "packageManager": "npm@11.4.2",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  }
 }
