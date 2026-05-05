@@ -21,7 +21,7 @@ serve(async (req) => {
       );
     }
 
-    const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovable.app") || "";
+    const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("SUPABASE_URL")?;
     const invitationLink = `${siteUrl}/accept-invitation?token=${token}`;
 
     // For now, log the invitation details. 

@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# نظام إدارة الحالات
 
-TODO: Document your project here
+نظام إدارة حالات (RTL) مخصص للمنظمات غير الربحية والجمعيات الخيرية.
