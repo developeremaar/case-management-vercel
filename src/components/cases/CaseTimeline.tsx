@@ -44,7 +44,7 @@ export function CaseTimeline({ caseId, createdAt, createdByName }: CaseTimelineP
   const resolveStepName = (stepId: string) => {
     if (!workflowSteps) return stepId;
     const step = findStepById(workflowSteps, stepId);
-    return step?.name || stepId;
+    return step?.name || step?.code || stepId;
   };
 
   const allEvents = [
@@ -100,14 +100,14 @@ export function CaseTimeline({ caseId, createdAt, createdByName }: CaseTimelineP
                       {event.actor_user.full_name}
                     </p>
                   )}
-                  {(event as any).details?.notes && (
+                  {(event as any).meta_json?.notes && (
                     <p className="text-xs text-muted-foreground mt-1 bg-muted/50 rounded px-2 py-1">
-                      {(event as any).details.notes}
+                      {(event as any).meta_json.notes}
                     </p>
                   )}
-                  {(event as any).details?.new_values?.current_step_id && (
+                  {(event as any).new_values_json?.current_step_id && (
                     <p className="text-xs text-primary mt-1">
-                      ← انتقلت إلى: {resolveStepName((event as any).details.new_values.current_step_id)}
+                      ← انتقلت إلى: {resolveStepName((event as any).new_values_json.current_step_id)}
                     </p>
                   )}
                 </div>

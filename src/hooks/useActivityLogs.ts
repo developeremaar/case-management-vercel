@@ -5,11 +5,13 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export interface ActivityLog {
   id: string;
-  case_id: string;
+  case_id: string | null;
   action: string;
-  membership_id?: string;
+  actor_membership_id?: string | null;
   organization_id: string;
-  details?: Record<string, any>;
+  old_values_json?: Record<string, any> | null;
+  new_values_json?: Record<string, any> | null;
+  meta_json?: Record<string, any> | null;
   created_at: string;
   actor_user?: { id: string; full_name: string } | null;
 }
@@ -36,39 +38,27 @@ export function useActivityLogs(caseId: string) {
         .eq("case_id", caseId)
         .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error("[ActivityLogs] Error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      // Resolve actor names from membership_id
       const logs = data || [];
-      const membershipIds = [...new Set(logs.map(l => l.membership_id).filter(Boolean))];
-      let actorMap: Record<string, string> = {};
+      const membershipIds = [...new Set(logs.map((l) => l.actor_membership_id).filter(Boolean))] as string[];
+      const actorMap: Record<string, string> = {};
 
       if (membershipIds.length > 0) {
-        const { data: members } = await supabase
-          .from("memberships")
-          .select("id, user_id")
-          .in("id", membershipIds);
-
-        if (members && members.length > 0) {
-          const userIds = [...new Set(members.map(m => m.user_id))];
-          const { data: users } = await supabase
-            .from("users")
-            .select("id, full_name")
-            .in("id", userIds);
-
+        const { data: members } = await supabase.from("memberships").select("id, user_id").in("id", membershipIds);
+        if (members?.length) {
+          const userIds = [...new Set(members.map((m) => m.user_id))];
+          const { data: users } = await supabase.from("users").select("id, full_name").in("id", userIds);
           const userMap: Record<string, string> = {};
-          (users || []).forEach(u => { userMap[u.id] = u.full_name; });
-          members.forEach(m => { actorMap[m.id] = userMap[m.user_id] || ""; });
+          (users || []).forEach((u) => { userMap[u.id] = u.full_name; });
+          members.forEach((m) => { actorMap[m.id] = userMap[m.user_id] || ""; });
         }
       }
 
       return logs.map((log: any) => ({
         ...log,
-        actor_user: log.membership_id && actorMap[log.membership_id]
-          ? { id: log.membership_id, full_name: actorMap[log.membership_id] }
+        actor_user: log.actor_membership_id && actorMap[log.actor_membership_id]
+          ? { id: log.actor_membership_id, full_name: actorMap[log.actor_membership_id] }
           : null,
       })) as ActivityLog[];
     },
@@ -86,81 +76,75 @@ export function useCreateCaseAction() {
 
       const { case_id, action_type, notes, new_department_id, new_status_id, new_step_id } = actionData;
 
-      // First get current case data for old_values
       const { data: currentCase, error: caseError } = await supabase
         .from("cases")
         .select("current_department_id, status_id, current_step_id")
         .eq("id", case_id)
         .single();
-
       if (caseError) throw caseError;
 
-      const meta: Record<string, any> = { notes };
+      const oldValues: Record<string, any> = {};
+      const newValues: Record<string, any> = {};
       const updates: Record<string, any> = {};
 
-      if (action_type === "transfer" && new_department_id) {
-        meta.old_values = { current_department_id: currentCase.current_department_id };
-        meta.new_values = { current_department_id: new_department_id };
-        updates.current_department_id = new_department_id;
-      } else if (action_type === "return" && new_department_id) {
-        meta.old_values = { current_department_id: currentCase.current_department_id };
-        meta.new_values = { current_department_id: new_department_id };
+      if ((action_type === "transfer" || action_type === "return") && new_department_id) {
+        oldValues.current_department_id = currentCase.current_department_id;
+        newValues.current_department_id = new_department_id;
         updates.current_department_id = new_department_id;
       } else if ((action_type === "approve" || action_type === "reject") && new_status_id) {
-        meta.old_values = { status_id: currentCase.status_id };
-        meta.new_values = { status_id: new_status_id };
+        oldValues.status_id = currentCase.status_id;
+        newValues.status_id = new_status_id;
         updates.status_id = new_status_id;
       }
 
-      // Handle workflow step transition
       if (new_step_id) {
-        meta.old_values = { ...(meta.old_values || {}), current_step_id: currentCase.current_step_id };
-        meta.new_values = { ...(meta.new_values || {}), current_step_id: new_step_id };
+        oldValues.current_step_id = currentCase.current_step_id;
+        newValues.current_step_id = new_step_id;
         updates.current_step_id = new_step_id;
-
-        // Auto-set status to "مكتملة" when reaching closure step
         if (actionData.auto_complete_status_id) {
-          meta.old_values.status_id = currentCase.status_id;
-          meta.new_values.status_id = actionData.auto_complete_status_id;
+          oldValues.status_id = currentCase.status_id;
+          newValues.status_id = actionData.auto_complete_status_id;
           updates.status_id = actionData.auto_complete_status_id;
         }
       }
 
-      // Update case if needed
       if (Object.keys(updates).length > 0) {
-        const { error: updateError } = await supabase
-          .from("cases")
-          .update(updates)
-          .eq("id", case_id);
+        const { error: updateError } = await supabase.from("cases").update(updates).eq("id", case_id);
         if (updateError) throw updateError;
       }
 
-      // Insert case_closure record when reaching closure step
       if (new_step_id && actionData.auto_complete_status_id) {
-        const { error: closureError } = await supabase
-          .from("case_closures")
-          .insert({
-            case_id,
-            closed_by_membership_id: currentMembership.id,
-            closure_reason: notes || null,
-            final_amount: actionData.final_amount ?? null,
-            notes: notes || null,
-          });
+        const { error: closureError } = await supabase.from("case_closures").insert({
+          case_id,
+          closed_by_membership_id: currentMembership.id,
+          closure_reason: notes || null,
+          closure_summary: notes || "تم إغلاق الحالة",
+          final_amount: actionData.final_amount ?? null,
+          closure_decision: null,
+        });
         if (closureError) console.error("Closure insert error:", closureError);
       }
 
-      // Insert activity log
-      const { error: logError } = await supabase
-        .from("activity_logs")
-        .insert({
-          case_id,
-          action: action_type,
-          membership_id: currentMembership.id,
-          organization_id: currentMembership.organization_id,
-          details: meta as any,
-        });
+      const { error: logError } = await supabase.from("activity_logs").insert({
+        organization_id: currentMembership.organization_id,
+        case_id,
+        entity_type: "case",
+        entity_id: case_id,
+        action: action_type,
+        actor_user_id: user.id,
+        actor_membership_id: currentMembership.id,
+        old_values_json: Object.keys(oldValues).length ? oldValues : null,
+        new_values_json: Object.keys(newValues).length ? newValues : null,
+        meta_json: {
+          notes: notes || null,
+          action_type,
+          new_department_id: new_department_id || null,
+          new_status_id: new_status_id || null,
+          new_step_id: new_step_id || null,
+        },
+      });
 
-      if (logError) throw logError;
+      if (logError) throw new Error("فشل تسجيل الإجراء في السجل: " + logError.message);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["activity_logs", variables.case_id] });
