@@ -53,8 +53,8 @@ export function useCloseCase() {
         case_id,
         final_amount: final_amount ?? null,
         closure_reason: closure_reason || null,
-        closure_summary: summary || null,
-        closure_decision: "approved",
+        closure_summary: summary || closure_reason,
+        closure_decision: null,
         closed_by_membership_id: currentMembership.id,
       });
       if (closureError) throw new Error("فشل حفظ سجل الإغلاق: " + closureError.message);
@@ -76,7 +76,7 @@ export function useCloseCase() {
         actor_membership_id: currentMembership.id,
         old_values_json: null,
         new_values_json: caseUpdates,
-        meta_json: { closure_reason, final_amount: final_amount ?? null, closure_summary: summary || null },
+        meta_json: { closure_reason, final_amount: final_amount ?? null, closure_summary: summary || closure_reason },
       });
 
       return { success: true };

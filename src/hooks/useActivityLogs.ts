@@ -118,9 +118,9 @@ export function useCreateCaseAction() {
           case_id,
           closed_by_membership_id: currentMembership.id,
           closure_reason: notes || null,
-          closure_summary: notes || null,
+          closure_summary: notes || "تم إغلاق الحالة",
           final_amount: actionData.final_amount ?? null,
-          closure_decision: "approved",
+          closure_decision: null,
         });
         if (closureError) console.error("Closure insert error:", closureError);
       }

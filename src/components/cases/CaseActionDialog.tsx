@@ -55,8 +55,8 @@ export function CaseActionDialog({ open, onOpenChange, caseId, currentStepId }: 
   // Check if this action leads to closure
   const isClosureAction = (() => {
     if (!selectedAction?.transition || !workflowSteps) return false;
-    const transition = resolveTransition(currentStep, selectedAction.transition);
-    const targetId = transition?.target_step_id || null;
+    const resolvedStep = resolveTransition(workflowSteps, currentStep, selectedAction.transition);
+    const targetId = resolvedStep?.id || null;
     if (!targetId) return false;
     const targetStep = findStepById(workflowSteps, targetId);
     return targetStep?.code === "closure";
@@ -87,10 +87,10 @@ export function CaseActionDialog({ open, onOpenChange, caseId, currentStepId }: 
     // Resolve target step using step_order logic
     let targetStepUUID: string | undefined;
     if (selectedAction.transition && workflowSteps) {
-      const transition = resolveTransition(currentStep, selectedAction.transition);
-      targetStepUUID = transition?.target_step_id;
+      const targetStep = resolveTransition(workflowSteps, currentStep, selectedAction.transition);
+      targetStepUUID = targetStep?.id;
       if (!targetStepUUID) {
-        toast({ title: "خطأ", description: "لا يمكن الانتقال إلى المرحلة المطلوبة", variant: "destructive" });
+        toast({ title: "خطأ", description: "لا يوجد انتقال مهيأ لهذا الإجراء في مسار الحالة.", variant: "destructive" });
         return;
       }
     }

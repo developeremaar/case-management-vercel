@@ -6,9 +6,8 @@ import type { StepTransition } from "@/config/workflowSteps";
 export interface WorkflowStepDB {
   id: string;
   code: string;
-  name_ar: string;
+  name: string;
   step_order: number;
-  allowed_transitions: StepTransition[];
   workflow_template_id: string;
 }
 
@@ -17,43 +16,36 @@ type WorkflowTemplateRow = {
   organization_id: string;
   is_active: boolean;
   case_type_id: string | null;
-  [key: string]: unknown;
+  is_default?: boolean;
 };
 
-export function getFirstStep(
-  steps: WorkflowStepDB[] | null | undefined
-): WorkflowStepDB | null {
-  if (!steps || steps.length === 0) {
-    return null;
-  }
-
+export function getFirstStep(steps: WorkflowStepDB[] | null | undefined): WorkflowStepDB | null {
+  if (!steps?.length) return null;
   return [...steps].sort((a, b) => a.step_order - b.step_order)[0] ?? null;
 }
 
-export function findStepById(
-  steps: WorkflowStepDB[] | null | undefined,
-  stepId: string | null | undefined
-): WorkflowStepDB | null {
-  if (!steps || !stepId) {
-    return null;
-  }
-
+export function findStepById(steps: WorkflowStepDB[] | null | undefined, stepId: string | null | undefined): WorkflowStepDB | null {
+  if (!steps || !stepId) return null;
   return steps.find((step) => step.id === stepId) ?? null;
 }
 
 export function resolveTransition(
+  steps: WorkflowStepDB[] | null | undefined,
   currentStep: WorkflowStepDB | null | undefined,
-  transitionCode: string | null | undefined
-): StepTransition | null {
-  if (!currentStep || !transitionCode) {
-    return null;
-  }
+  transitionCode: StepTransition | null | undefined
+): WorkflowStepDB | null {
+  if (!steps || !currentStep || !transitionCode) return null;
 
-  return (
-    currentStep.allowed_transitions?.find(
-      (transition) => transition.code === transitionCode
-    ) ?? null
-  );
+  if (transitionCode === "__next__") {
+    return steps.find((s) => s.step_order === currentStep.step_order + 1) ?? null;
+  }
+  if (transitionCode === "__prev__") {
+    return steps.find((s) => s.step_order === currentStep.step_order - 1) ?? null;
+  }
+  if (transitionCode === "__rejected__") {
+    return steps.find((s) => s.code === "rejected") ?? null;
+  }
+  return null;
 }
 
 function isTemplateDefault(template: WorkflowTemplateRow): boolean {
@@ -74,52 +66,23 @@ export function useWorkflowSteps(caseTypeId?: string | null) {
         .eq("organization_id", organizationId!)
         .eq("is_active", true);
 
-      if (templatesError) {
-        console.error(
-          "[WorkflowSteps] Template resolution error:",
-          templatesError
-        );
-        throw templatesError;
-      }
-
+      if (templatesError) throw templatesError;
       const templateRows = (templates ?? []) as WorkflowTemplateRow[];
 
-      let selectedTemplate: WorkflowTemplateRow | undefined;
-
-      if (caseTypeId) {
-        selectedTemplate = templateRows.find(
-          (template) => template.case_type_id === caseTypeId
-        );
-      }
-
-      if (!selectedTemplate) {
-        selectedTemplate = templateRows.find(
-          (template) =>
-            template.case_type_id == null && isTemplateDefault(template)
-        );
-      }
-
-      if (!selectedTemplate) {
-        selectedTemplate = templateRows.find(
-          (template) => template.case_type_id == null
-        );
-      }
-
-      if (!selectedTemplate) {
-        return [];
-      }
+      let selectedTemplate = caseTypeId
+        ? templateRows.find((template) => template.case_type_id === caseTypeId)
+        : undefined;
+      if (!selectedTemplate) selectedTemplate = templateRows.find((template) => template.case_type_id == null && isTemplateDefault(template));
+      if (!selectedTemplate) selectedTemplate = templateRows.find((template) => template.case_type_id == null);
+      if (!selectedTemplate) return [];
 
       const { data, error } = await supabase
         .from("workflow_steps")
-        .select("*")
+        .select("id, code, name, step_order, workflow_template_id")
         .eq("workflow_template_id", selectedTemplate.id)
         .order("step_order", { ascending: true });
 
-      if (error) {
-        console.error("[WorkflowSteps] Error:", error);
-        throw error;
-      }
-
+      if (error) throw error;
       return (data ?? []) as WorkflowStepDB[];
     },
   });

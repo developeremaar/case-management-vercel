@@ -44,7 +44,7 @@ export function CaseTimeline({ caseId, createdAt, createdByName }: CaseTimelineP
   const resolveStepName = (stepId: string) => {
     if (!workflowSteps) return stepId;
     const step = findStepById(workflowSteps, stepId);
-    return step?.name_ar || step?.code || stepId;
+    return step?.name || step?.code || stepId;
   };
 
   const allEvents = [
