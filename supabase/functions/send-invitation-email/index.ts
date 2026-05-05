@@ -72,17 +72,13 @@ serve(async (req) => {
       token
     )}`;
 
-    // For now, log the invitation details.
-    // Replace with actual email sending provider such as Resend or SendGrid when ready.
-    console.log("=== SENDING INVITATION EMAIL ===");
-    console.log("To:", email);
-    console.log("Name:", name);
-    console.log("Link:", invitationLink);
-    console.log("================================");
+    // Email provider is not configured yet in this project.
+    // We return the generated secure invitation link so UI can offer copy fallback.
 
     return jsonResponse({
       success: true,
-      message: `Invitation email queued for ${email}`,
+      emailConfigured: false,
+      message: "تم إنشاء رابط الدعوة، لكن إرسال البريد غير مفعّل بعد.",
       link: invitationLink,
     });
   } catch (err) {

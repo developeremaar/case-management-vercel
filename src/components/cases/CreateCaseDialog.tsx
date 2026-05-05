@@ -19,7 +19,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCreateCase, useCaseLookups } from "@/hooks/useCases";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { BeneficiarySearch } from "@/components/beneficiaries/BeneficiarySearch";
 import { BeneficiaryCard } from "@/components/beneficiaries/BeneficiaryCard";
 import { CreateBeneficiarySheet } from "@/components/beneficiaries/CreateBeneficiarySheet";
@@ -37,13 +37,14 @@ interface Props {
 export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId }: Props) {
   const { toast } = useToast();
   const createCase = useCreateCase();
-  const { caseTypes, caseSources, priorities, statuses, departments } = useCaseLookups();
+  const { caseTypes, caseSources, priorities, departments } = useCaseLookups();
   const { currentMembership } = useOrganization();
   const orgId = currentMembership?.organization_id;
 
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary | null>(null);
   const [showCreateBeneficiary, setShowCreateBeneficiary] = useState(false);
   const [workflowWarning, setWorkflowWarning] = useState<string | null>(null);
+  const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
 
   const [form, setForm] = useState<CaseFormData>({
     title: "",
@@ -83,12 +84,6 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
       setForm((prev) => ({ ...prev, priority_id: priorities.data![0].id }));
     }
   }, [priorities.data]);
-
-  useEffect(() => {
-    if (statuses.data?.length && !form.status_id) {
-      setForm((prev) => ({ ...prev, status_id: statuses.data![0].id }));
-    }
-  }, [statuses.data]);
 
   // Check workflow when case type changes
   useEffect(() => {
@@ -139,10 +134,6 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
       toast({ title: "خطأ", description: "عنوان الحالة مطلوب", variant: "destructive" });
       return;
     }
-    if (!form.status_id) {
-      toast({ title: "خطأ", description: "الحالة النظامية مطلوبة", variant: "destructive" });
-      return;
-    }
     if (!form.priority_id) {
       toast({ title: "خطأ", description: "الأولوية مطلوبة", variant: "destructive" });
       return;
@@ -168,7 +159,6 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
     setWorkflowWarning(null);
     setForm({
       title: "", subject: "", description: "",
-      status_id: statuses.data?.[0]?.id,
       priority_id: priorities.data?.[0]?.id,
       beneficiary_full_name: "", beneficiary_mobile: "",
     });
@@ -234,16 +224,6 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
                   </Select>
                 </div>
                 <div>
-                  <Label>مصدر الحالة</Label>
-                  <Select value={form.case_source_id || NONE} onValueChange={(v) => updateField("case_source_id", v === NONE ? undefined : v)}>
-                    <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>— غير محدد —</SelectItem>
-                      {caseSources.data?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
                   <Label>الأولوية *</Label>
                   {priorities.isLoading ? (
                     <p className="text-xs text-muted-foreground">جارٍ التحميل...</p>
@@ -254,21 +234,6 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
                       <SelectTrigger><SelectValue placeholder="اختر الأولوية" /></SelectTrigger>
                       <SelectContent>
                         {priorities.data?.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-                <div>
-                  <Label>الحالة النظامية *</Label>
-                  {statuses.isLoading ? (
-                    <p className="text-xs text-muted-foreground">جارٍ التحميل...</p>
-                  ) : statuses.data?.length === 0 ? (
-                    <p className="text-xs text-destructive">⚠ لم يتم تحميل الحالات النظامية</p>
-                  ) : (
-                    <Select value={form.status_id || ""} onValueChange={(v) => updateField("status_id", v)}>
-                      <SelectTrigger><SelectValue placeholder="اختر الحالة" /></SelectTrigger>
-                      <SelectContent>
-                        {statuses.data?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   )}
@@ -299,8 +264,21 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
 
             {/* Additional Info */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground border-b border-border pb-1">معلومات إضافية</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button type="button" variant="ghost" className="w-full justify-between px-0" onClick={() => setShowAdditionalInfo((s) => !s)}>
+                <span className="text-sm font-semibold text-muted-foreground">معلومات إضافية</span>
+                {showAdditionalInfo ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+              {showAdditionalInfo && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>مصدر الحالة</Label>
+                  <Select value={form.case_source_id || NONE} onValueChange={(v) => updateField("case_source_id", v === NONE ? undefined : v)}>
+                    <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>— غير محدد —</SelectItem>
+                      {caseSources.data?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label htmlFor="source_entity">الجهة المصدرة</Label>
                   <Input id="source_entity" value={form.source_entity_name || ""} onChange={(e) => updateField("source_entity_name", e.target.value)} placeholder="اسم الجهة المصدرة" />
@@ -313,7 +291,7 @@ export function CreateCaseDialog({ open, onOpenChange, preselectedBeneficiaryId 
                   <Label htmlFor="ref_date">تاريخ المرجع</Label>
                   <Input id="ref_date" type="date" value={form.official_reference_date || ""} onChange={(e) => updateField("official_reference_date", e.target.value)} />
                 </div>
-              </div>
+              </div>}
             </div>
 
             {/* Actions */}

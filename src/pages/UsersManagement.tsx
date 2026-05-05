@@ -371,7 +371,13 @@ function InvitationsTable({
                             sendEmail.mutate(
                               { email: inv.email, name: inv.full_name, token: inv.invitation_token },
                               {
-                                onSuccess: () => toast.success("تم إرسال الدعوة بنجاح"),
+                                onSuccess: (result: any) => {
+                                  if (result?.emailConfigured === false) {
+                                    toast.warning("تم إنشاء رابط الدعوة، لكن إرسال البريد غير مفعّل بعد.");
+                                  } else {
+                                    toast.success("تم إرسال الدعوة بنجاح");
+                                  }
+                                },
                                 onError: (e: any) => toast.error(e.message || "فشل إرسال الدعوة"),
                               }
                             );
@@ -474,13 +480,16 @@ function InviteUserDialog({
             name: fullName.trim(),
             token: result.invitation_token,
           });
-          toast.success("تم إنشاء الدعوة وإرسال البريد بنجاح");
+          toast.success("تم إرسال الدعوة بنجاح");
         } catch (emailErr: any) {
-          toast.warning("تم إنشاء الدعوة لكن فشل إرسال البريد: " + (emailErr.message || "خطأ غير معروف"));
+          toast.warning("تعذر إرسال البريد، يمكنك نسخ الرابط يدويًا");
         }
       } else {
-        toast.success("تم إنشاء الدعوة بنجاح (بدون بريد إلكتروني)");
+        toast.success("تم إنشاء رابط الدعوة");
       }
+      const inviteLink = `${window.location.origin}/accept-invitation?token=${result.invitation_token}`;
+      await navigator.clipboard.writeText(inviteLink);
+      toast.info("تم نسخ رابط الدعوة تلقائيًا");
       resetForm();
       onClose();
     } catch (e: any) {
