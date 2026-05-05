@@ -95,7 +95,7 @@ export function useSendInvitationEmail() {
       const payload = { email: input.email, name: input.name, token: input.token };
 
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       if (!baseUrl || !anonKey) {
         const msg = "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY";
@@ -139,7 +139,7 @@ export function useSendInvitationEmail() {
           throw new Error(errMsg);
         }
 
-        const result = JSON.parse(responseText);
+        const result = responseText ? JSON.parse(responseText) : {};
         return result;
       } catch (err: any) {
         console.error(`[SendInvitation] Fetch error for ${fnName}:`, {

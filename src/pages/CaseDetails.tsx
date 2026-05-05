@@ -19,6 +19,7 @@ import { CaseActionDialog } from "@/components/cases/CaseActionDialog";
 import { CloseCaseSheet } from "@/components/cases/CloseCaseSheet";
 import { CaseTimeline } from "@/components/cases/CaseTimeline";
 import { WorkflowStepper } from "@/components/cases/WorkflowStepper";
+import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 import { useWorkflowSteps, findStepById as findStepByUUID } from "@/hooks/useWorkflowSteps";
 import { getAllowedActionsByCode } from "@/config/workflowSteps";
 import { useHasPermission } from "@/hooks/usePermissions";
@@ -51,8 +52,8 @@ export default function CaseDetails() {
     return new Date(dateStr).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  const formatCurrency = (n?: number | null) => {
-    if (n == null) return "—";
+  const formatCurrency = (n?: number | null, emptyLabel = "—") => {
+    if (n == null) return emptyLabel;
     return `${n.toLocaleString("ar-SA")} ريال`;
   };
 
@@ -218,7 +219,7 @@ export default function CaseDetails() {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InfoItem label="المبلغ المطلوب" value={formatCurrency(c.requested_amount)} />
-                <InfoItem label="المبلغ المعتمد" value={formatCurrency(c.approved_amount)} />
+                <InfoItem label="المبلغ المعتمد" value={formatCurrency(c.approved_amount, "غير محدد")} />
                 <InfoItem label="الجهة المصدرة" value={c.source_entity_name} />
                 <InfoItem label="الرقم المرجعي" value={c.official_reference_number} />
                 <InfoItem label="تاريخ المرجع" value={formatDate(c.official_reference_date)} />
@@ -241,7 +242,7 @@ export default function CaseDetails() {
                     label="مبلغ الدعم المصروف النهائي"
                     value={closureData.final_amount != null ? formatCurrency(closureData.final_amount) : "لم يتم تسجيل مبلغ مصروف"}
                   />
-                  <InfoItem label="سبب الإغلاق" value={closureData.closure_reason} />
+                  <InfoItem label="سبب الإغلاق" value={closureData.closure_reason || "غير متوفر"} />
                   <InfoItem label="تاريخ الإغلاق" value={formatDateTime(closureData.created_at)} />
                   <InfoItem label="منفذ الإغلاق" value={closureData.closed_by_user?.full_name} />
                   {closureNotesObj?.reference_number && (
@@ -255,7 +256,7 @@ export default function CaseDetails() {
                   )}
                   {closureNotesObj?.text && (
                     <div className="sm:col-span-2">
-                      <InfoItem label="ملاحظات الإغلاق" value={closureNotesObj.text} />
+                      <InfoItem label="ملخص الإغلاق" value={closureNotesObj.text || "غير متوفر"} />
                     </div>
                   )}
                 </div>
@@ -305,6 +306,8 @@ export default function CaseDetails() {
               </CardContent>
             </Card>
           )}
+
+          <AttachmentsPanel caseId={c.id} />
 
           {/* Timeline */}
           <CaseTimeline caseId={c.id} createdAt={c.created_at} createdByName={c.created_by_user?.full_name} />
