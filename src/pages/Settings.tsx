@@ -67,9 +67,13 @@ interface StepDefinition {
 
 interface CaseType {
   id: string;
+  organization_id: string;
   name: string;
   code: string;
-  organization_id: string;
+  description: string | null;
+  requires_amount: boolean;
+  requires_beneficiary: boolean;
+  is_active: boolean;
 }
 
 interface Department {
@@ -122,6 +126,55 @@ interface OrganizationDepartmentRow {
   code: string | null;
   description: string | null;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CaseSourceRow {
+  id: string;
+  organization_id: string;
+  name: string;
+  code: string;
+  is_active: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CasePriorityRow {
+  id: string;
+  organization_id: string;
+  name: string;
+  code: string;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CaseStatusRow {
+  id: string;
+  organization_id: string;
+  name: string;
+  code: string;
+  color: string | null;
+  is_terminal: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface OrganizationSettingsRow {
+  id: string;
+  organization_id: string;
+  has_branches: boolean;
+  case_number_prefix: string | null;
+  default_locale: string | null;
+  allow_external_portal: boolean;
+  require_official_reference: boolean;
+  require_source_reference: boolean;
+  allow_parallel_approvals: boolean;
+  allow_multi_department_assignment: boolean;
+  default_case_visibility: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -227,11 +280,84 @@ function useCaseTypesLookup() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("case_types")
-        .select("id, name, code, organization_id")
+        .select("id, organization_id, name, code, description, requires_amount, requires_beneficiary, is_active")
         .eq("organization_id", orgId!)
         .order("name");
       if (error) throw error;
       return data as CaseType[];
+    },
+  });
+}
+
+function useCaseSourcesLookup() {
+  const { currentMembership } = useOrganization();
+  const orgId = currentMembership?.organization_id;
+  return useQuery<CaseSourceRow[]>({
+    queryKey: ["case_sources_settings", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("case_sources")
+        .select("id, organization_id, name, code, is_active, sort_order, created_at, updated_at")
+        .eq("organization_id", orgId!)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data || []) as CaseSourceRow[];
+    },
+  });
+}
+
+function useCasePrioritiesLookup() {
+  const { currentMembership } = useOrganization();
+  const orgId = currentMembership?.organization_id;
+  return useQuery<CasePriorityRow[]>({
+    queryKey: ["case_priorities_settings", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("case_priorities")
+        .select("id, organization_id, name, code, sort_order, created_at, updated_at")
+        .eq("organization_id", orgId!)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data || []) as CasePriorityRow[];
+    },
+  });
+}
+
+function useCaseStatusesLookup() {
+  const { currentMembership } = useOrganization();
+  const orgId = currentMembership?.organization_id;
+  return useQuery<CaseStatusRow[]>({
+    queryKey: ["case_statuses_settings", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("case_statuses")
+        .select("id, organization_id, name, code, color, is_terminal, sort_order, created_at, updated_at")
+        .eq("organization_id", orgId!)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data || []) as CaseStatusRow[];
+    },
+  });
+}
+
+function useOrganizationSettings(orgId: string | undefined) {
+  return useQuery<OrganizationSettingsRow | null>({
+    queryKey: ["organization_settings", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organization_settings")
+        .select("id, organization_id, has_branches, case_number_prefix, default_locale, allow_external_portal, require_official_reference, require_source_reference, allow_parallel_approvals, allow_multi_department_assignment, default_case_visibility, created_at, updated_at")
+        .eq("organization_id", orgId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as OrganizationSettingsRow | null;
     },
   });
 }
@@ -385,6 +511,10 @@ export default function Settings() {
   const { data: memberships } = useMembershipsLookup();
   const { data: stepDefinitions } = useStepDefinitions();
   const { data: organizationInfo } = useOrganizationInfo(orgId);
+  const { data: caseSources } = useCaseSourcesLookup();
+  const { data: casePriorities } = useCasePrioritiesLookup();
+  const { data: caseStatuses } = useCaseStatusesLookup();
+  const { data: orgCaseSettings } = useOrganizationSettings(orgId);
   const { data: branches } = useBranches(orgId);
   const { data: organizationDepartments } = useOrganizationDepartments(orgId);
 
@@ -745,7 +875,7 @@ export default function Settings() {
     setEditingStepSheetOpen(true);
   };
 
-  if (activeSection !== "workflows") {
+  if (activeSection !== "workflows" && activeSection !== "cases") {
     return (
       <div className="space-y-6" dir="rtl">
         <div className="space-y-2">
@@ -1032,11 +1162,20 @@ export default function Settings() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-foreground">قسم المسارات</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">إدارة مسارات أنواع الحالات</p>
+          <h2 className="text-xl font-bold text-foreground">{activeSection === "cases" ? "قسم إعدادات الحالات" : "قسم المسارات"}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{activeSection === "cases" ? "عرض مرجعية إعدادات الحالات (قراءة فقط)" : "إدارة مسارات أنواع الحالات"}</p>
         </div>
       </div>
 
+      {activeSection === "cases" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card><CardHeader><CardTitle>أنواع الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(caseTypes || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-2"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div><div className="text-muted-foreground text-xs">{row.description || "لا يوجد وصف"}</div><div className="flex flex-wrap items-center gap-2"><Badge variant={row.requires_amount ? "default" : "secondary"}>{row.requires_amount ? "يتطلب مبلغًا" : "لا يتطلب مبلغًا"}</Badge><Badge variant={row.requires_beneficiary ? "default" : "secondary"}>{row.requires_beneficiary ? "يتطلب مستفيدًا" : "لا يتطلب مستفيدًا"}</Badge><Badge variant={row.is_active ? "default" : "outline"}>{row.is_active ? "نشط" : "غير نشط"}</Badge></div></div>)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>مصادر الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(caseSources || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>أولويات الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(casePriorities || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>حالات الحالة</CardTitle></CardHeader><CardContent className="space-y-2">{(caseStatuses || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium flex items-center gap-2">{row.name}{row.is_terminal ? <Badge variant="secondary">نهائية</Badge> : null}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
+          <Card className="lg:col-span-2"><CardHeader><CardTitle>السياسات العامة للحالات</CardTitle></CardHeader><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm"><div className="rounded-md border p-3">وجود فروع: <strong>{orgCaseSettings?.has_branches ? "نعم" : "لا"}</strong></div><div className="rounded-md border p-3">بادئة رقم الحالة: <strong>{orgCaseSettings?.case_number_prefix || "—"}</strong></div><div className="rounded-md border p-3">اللغة الافتراضية: <strong>{orgCaseSettings?.default_locale || "—"}</strong></div><div className="rounded-md border p-3">السماح بالبوابة الخارجية: <strong>{orgCaseSettings?.allow_external_portal ? "نعم" : "لا"}</strong></div><div className="rounded-md border p-3">مرجع رسمي إلزامي: <strong>{orgCaseSettings?.require_official_reference ? "نعم" : "لا"}</strong></div><div className="rounded-md border p-3">مرجع المصدر إلزامي: <strong>{orgCaseSettings?.require_source_reference ? "نعم" : "لا"}</strong></div><div className="rounded-md border p-3">الموافقات المتوازية: <strong>{orgCaseSettings?.allow_parallel_approvals ? "نعم" : "لا"}</strong></div><div className="rounded-md border p-3">إسناد متعدد الإدارات: <strong>{orgCaseSettings?.allow_multi_department_assignment ? "نعم" : "لا"}</strong></div><div className="rounded-md border p-3 md:col-span-2">رؤية الحالة الافتراضية: <strong>{orgCaseSettings?.default_case_visibility || "—"}</strong></div></CardContent></Card>
+        </div>
+      ) : (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -1142,6 +1281,7 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Step Definitions Library */}
       <StepDefinitionsLibrary />
