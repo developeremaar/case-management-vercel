@@ -2133,109 +2133,7 @@ function simpleTransliterate(text: string): string {
 }
 
 function StepDefinitionsLibrary() {
-  const queryClient = useQueryClient();
   const { data: definitions, isLoading } = useStepDefinitions();
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<StepDefinition | null>(null);
-  const [defName, setDefName] = useState("");
-  const [defCode, setDefCode] = useState("");
-  const [defType, setDefType] = useState("review");
-  const [defActive, setDefActive] = useState(true);
-  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
-  const [codeError, setCodeError] = useState<string | null>(null);
-
-  const STEP_TYPES = [
-    { value: "review", label: "مراجعة" },
-    { value: "approval", label: "اعتماد" },
-    { value: "assignment", label: "تحويل" },
-    { value: "execution", label: "تنفيذ" },
-    { value: "publish", label: "نشر" },
-    { value: "close", label: "إغلاق" },
-  ];
-
-  const checkCodeUniqueness = (code: string) => {
-    if (!code) { setCodeError(null); return; }
-    const isDuplicate = definitions?.some(d => d.code === code && d.id !== editing?.id);
-    setCodeError(isDuplicate ? "هذا الكود مستخدم بالفعل" : null);
-  };
-
-  const handleNameChange = (name: string) => {
-    setDefName(name);
-    if (!isCodeManuallyEdited) {
-      const generated = generateStepCode(name);
-      setDefCode(generated);
-      checkCodeUniqueness(generated);
-    }
-  };
-
-  const handleCodeChange = (code: string) => {
-    const sanitized = code.toLowerCase().replace(/[^a-z0-9_]/g, "").replace(/_+/g, "_");
-    setDefCode(sanitized);
-    setIsCodeManuallyEdited(true);
-    checkCodeUniqueness(sanitized);
-  };
-
-  const handleRegenerate = () => {
-    const generated = generateStepCode(defName);
-    setDefCode(generated);
-    setIsCodeManuallyEdited(false);
-    checkCodeUniqueness(generated);
-  };
-
-  const openDialog = (def: StepDefinition | null) => {
-    setEditing(def);
-    setDefName(def?.name || "");
-    setDefCode(def?.code || "");
-    setDefType(def?.step_type || "review");
-    setDefActive(def?.is_active !== false);
-    setIsCodeManuallyEdited(!!def);
-    setCodeError(null);
-    setDialogOpen(true);
-  };
-
-  const saveDef = useMutation({
-    mutationFn: async () => {
-      const finalCode = defCode.trim() || generateStepCode(defName);
-      if (!finalCode) throw new Error("لا يمكن توليد كود صالح");
-      // Check uniqueness
-      const isDuplicate = definitions?.some(d => d.code === finalCode && d.id !== editing?.id);
-      if (isDuplicate) throw new Error("هذا الكود مستخدم بالفعل");
-
-      if (editing) {
-        const { error } = await supabase
-          .from("workflow_step_definitions")
-          .update({ name: defName, code: finalCode, step_type: defType, is_active: defActive })
-          .eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("workflow_step_definitions")
-          .insert({ name: defName, code: finalCode, step_type: defType, is_active: defActive });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["step_definitions"] });
-      setDialogOpen(false);
-      toast.success("تم الحفظ");
-    },
-    onError: (e: any) => toast.error("خطأ: " + e.message),
-  });
-
-  const deleteDef = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("workflow_step_definitions").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["step_definitions"] });
-      toast.success("تم الحذف");
-    },
-    onError: (e: any) => toast.error("خطأ: " + e.message),
-  });
-
-  const canSave = defName.trim() && !codeError && !saveDef.isPending;
 
   return (
     <Card>
@@ -2244,21 +2142,24 @@ function StepDefinitionsLibrary() {
           <FileText className="h-5 w-5" />
           مكتبة خطوات المسارات
         </CardTitle>
-        <Button size="sm" onClick={() => openDialog(null)} className="gap-1.5">
+        <Button size="sm" disabled className="gap-1.5" title="إضافة تعريف جديد غير متاحة حالياً">
           <Plus className="h-4 w-4" />
           خطوة جديدة
         </Button>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          مكتبة خطوات المسارات عامة، وإضافة تعريفات جديدة تتطلب تهيئة صلاحيات أو إدارة من المنصة لاحقًا.
+        </div>
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
         ) : !definitions?.length ? (
           <div className="text-center py-12 space-y-2">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">لا توجد خطوات معرّفة</p>
-            <Button variant="outline" size="sm" onClick={() => openDialog(null)}>
+            <Button variant="outline" size="sm" disabled title="إضافة تعريف جديد غير متاحة حالياً">
               <Plus className="h-4 w-4 ml-1" />
-              أضف أول خطوة
+              إضافة التعريفات غير متاحة
             </Button>
           </div>
         ) : (
@@ -2269,7 +2170,6 @@ function StepDefinitionsLibrary() {
                 <TableHead className="text-right">الكود</TableHead>
                 <TableHead className="text-right">النوع</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
-                <TableHead className="text-right w-24">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2287,101 +2187,12 @@ function StepDefinitionsLibrary() {
                       {def.is_active ? "نشط" : "غير نشط"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(def)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                        onClick={() => { if (confirm("هل تريد حذف هذه الخطوة؟")) deleteDef.mutate(def.id); }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </CardContent>
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "تعديل خطوة" : "إضافة خطوة جديدة"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>اسم الخطوة</Label>
-              <Input
-                value={defName}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="مثال: اعتماد المدير"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-sm">كود الخطوة <span className="text-muted-foreground font-normal">(اختياري)</span></Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1 text-primary"
-                  onClick={handleRegenerate}
-                  disabled={!defName.trim()}
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  إعادة توليد
-                </Button>
-              </div>
-              <Input
-                value={defCode}
-                onChange={(e) => handleCodeChange(e.target.value)}
-                placeholder="example: manager_approval"
-                className={`font-mono mt-0 ${!isCodeManuallyEdited && defCode ? "text-muted-foreground" : ""} ${codeError ? "border-destructive" : ""}`}
-                onFocus={() => {}}
-                dir="ltr"
-              />
-              {codeError && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {codeError}
-                </p>
-              )}
-              {defCode && !codeError && (
-                <p className="text-xs text-muted-foreground mt-1 font-mono" dir="ltr">{defCode}</p>
-              )}
-            </div>
-            <div>
-              <Label>نوع الخطوة</Label>
-              <Select value={defType} onValueChange={setDefType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STEP_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>نشط</Label>
-              <Switch checked={defActive} onCheckedChange={setDefActive} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => saveDef.mutate()} disabled={!canSave}>
-              {saveDef.isPending ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
-              حفظ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
