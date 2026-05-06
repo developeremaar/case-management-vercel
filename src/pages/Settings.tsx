@@ -22,6 +22,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { OrganizationOverviewSection } from "@/components/settings/OrganizationOverviewSection";
+import { BranchesDepartmentsSection } from "@/components/settings/BranchesDepartmentsSection";
 import {
   Loader2, Settings as SettingsIcon, Plus, Pencil, Trash2,
   ArrowUp, ArrowDown, GitBranch, ChevronLeft, Shield, ListOrdered,
@@ -79,6 +81,49 @@ interface RoleRow {
   id: string;
   name: string;
   code: string;
+}
+
+interface OrganizationRow {
+  id: string;
+  name: string;
+  slug: string;
+  commercial_name: string | null;
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  contact_email: string | null;
+  contact_mobile: string | null;
+  address: string | null;
+  country_code: string | null;
+  timezone: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface BranchRow {
+  id: string;
+  organization_id: string;
+  name: string;
+  code: string | null;
+  city: string | null;
+  address: string | null;
+  contact_mobile: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface OrganizationDepartmentRow {
+  id: string;
+  organization_id: string;
+  branch_id: string | null;
+  name: string;
+  code: string | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface StepAssignee {
@@ -226,6 +271,54 @@ function useRolesLookup() {
   });
 }
 
+function useOrganizationInfo(orgId: string | undefined) {
+  return useQuery<OrganizationRow | null>({
+    queryKey: ["organization_info", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name, slug, commercial_name, logo_url, primary_color, secondary_color, contact_email, contact_mobile, address, country_code, timezone, is_active, created_at, updated_at")
+        .eq("id", orgId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as OrganizationRow | null;
+    },
+  });
+}
+
+function useBranches(orgId: string | undefined) {
+  return useQuery<BranchRow[]>({
+    queryKey: ["branches", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id, organization_id, name, code, city, address, contact_mobile, is_active, created_at, updated_at")
+        .eq("organization_id", orgId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as BranchRow[];
+    },
+  });
+}
+
+function useOrganizationDepartments(orgId: string | undefined) {
+  return useQuery<OrganizationDepartmentRow[]>({
+    queryKey: ["org_departments", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, organization_id, branch_id, name, code, description, is_active, created_at, updated_at")
+        .eq("organization_id", orgId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as OrganizationDepartmentRow[];
+    },
+  });
+}
+
 function useStepDefinitions() {
   return useQuery<StepDefinition[]>({
     queryKey: ["step_definitions"],
@@ -291,6 +384,9 @@ export default function Settings() {
   const { data: roles } = useRolesLookup();
   const { data: memberships } = useMembershipsLookup();
   const { data: stepDefinitions } = useStepDefinitions();
+  const { data: organizationInfo } = useOrganizationInfo(orgId);
+  const { data: branches } = useBranches(orgId);
+  const { data: organizationDepartments } = useOrganizationDepartments(orgId);
 
   // ── State ──
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
@@ -683,22 +779,28 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{activeSectionMeta.label}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">{activeSectionMeta.hint}</p>
-            <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-              هذا القسم قيد التجهيز وسيتم تنفيذه في مرحلة لاحقة بعد اعتماد نطاقه التفصيلي.
-            </div>
-            <div>
-              <Button variant="outline" size="sm" onClick={() => setActiveSection("workflows")}>
-                الانتقال إلى قسم المسارات
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {activeSection === "org" ? (
+          <OrganizationOverviewSection organization={organizationInfo} />
+        ) : activeSection === "branches_departments" && orgId ? (
+          <BranchesDepartmentsSection orgId={orgId} branches={branches || []} departments={organizationDepartments || []} />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>{activeSectionMeta.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">{activeSectionMeta.hint}</p>
+              <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                هذا القسم قيد التجهيز وسيتم تنفيذه في مرحلة لاحقة بعد اعتماد نطاقه التفصيلي.
+              </div>
+              <div>
+                <Button variant="outline" size="sm" onClick={() => setActiveSection("workflows")}>
+                  الانتقال إلى قسم المسارات
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }
