@@ -294,6 +294,8 @@ export default function Settings() {
 
   // ── State ──
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+  const [activeSection, setActiveSection] = useState("workflows");
+  const [settingsSearch, setSettingsSearch] = useState("");
   const [templateSheetOpen, setTemplateSheetOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WorkflowTemplate | null>(null);
   const [editingStepSheetOpen, setEditingStepSheetOpen] = useState(false);
@@ -302,6 +304,32 @@ export default function Settings() {
 
   const { data: steps, isLoading: stepsLoading } = useWorkflowStepsForTemplate(selectedTemplate?.id || null);
   const { data: editingStepAssignees } = useStepAssignees(editingStep?.id || null);
+
+  const settingsSections = [
+    { key: "org", label: "بيانات الجهة", hint: "الهوية الأساسية وإعدادات الجهة" },
+    { key: "branches_departments", label: "الفروع والأقسام", hint: "إدارة الفروع والأقسام التنظيمية" },
+    { key: "users_memberships", label: "المستخدمون والعضويات", hint: "إدارة المستخدمين وعضوياتهم" },
+    { key: "roles_permissions", label: "الأدوار والصلاحيات", hint: "إدارة الأدوار وربط الصلاحيات" },
+    { key: "cases", label: "الحالات", hint: "تهيئة أنواع ومصادر وأولويات الحالات" },
+    { key: "workflows", label: "المسارات", hint: "إعداد مسارات أنواع الحالات" },
+    { key: "beneficiaries", label: "المستفيدون", hint: "ضبط إعدادات بيانات المستفيدين" },
+    { key: "attachments", label: "المرفقات", hint: "ضبط أنواع وسياسات المرفقات" },
+    { key: "resource_dev", label: "تنمية الموارد المالية", hint: "إعدادات نشر الحالات والتحصيل" },
+    { key: "crm", label: "خدمة العملاء CRM", hint: "إعداد قنوات التواصل والتذاكر" },
+    { key: "integrations", label: "التكاملات", hint: "إعداد مزودي الخدمات والمفاتيح" },
+    { key: "notifications", label: "الإشعارات", hint: "إدارة قنوات وقوالب الإشعارات" },
+    { key: "reports", label: "التقارير", hint: "تفضيلات التقارير ولوحة التحكم" },
+    { key: "security", label: "الأمان والحوكمة", hint: "سجل العمليات وسياسات الحوكمة" },
+    { key: "portal", label: "البوابة الخارجية", hint: "إعدادات البوابة والخدمات الخارجية" },
+  ] as const;
+
+  const normalizedSearch = settingsSearch.trim().toLowerCase();
+  const visibleSections = settingsSections.filter((section) => {
+    if (!normalizedSearch) return true;
+    return section.label.toLowerCase().includes(normalizedSearch) || section.hint.toLowerCase().includes(normalizedSearch);
+  });
+
+  const activeSectionMeta = settingsSections.find((section) => section.key === activeSection) || settingsSections[5];
 
   // ── Template CRUD ──
   const saveTemplate = useMutation({
@@ -621,10 +649,89 @@ export default function Settings() {
     setEditingStepSheetOpen(true);
   };
 
+  if (activeSection !== "workflows") {
+    return (
+      <div className="space-y-6" dir="rtl">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">إعدادات الجهة</h1>
+          <p className="text-sm text-muted-foreground">مركز إعدادات موحّد لإدارة الجهة</p>
+        </div>
+
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            <Input
+              value={settingsSearch}
+              onChange={(e) => setSettingsSearch(e.target.value)}
+              placeholder="ابحث داخل أقسام الإعدادات..."
+            />
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {visibleSections.map((section) => (
+                <Button
+                  key={section.key}
+                  variant={activeSection === section.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setActiveSection(section.key);
+                    setSelectedTemplate(null);
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  {section.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{activeSectionMeta.label}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">{activeSectionMeta.hint}</p>
+            <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+              هذا القسم قيد التجهيز وسيتم تنفيذه في مرحلة لاحقة بعد اعتماد نطاقه التفصيلي.
+            </div>
+            <div>
+              <Button variant="outline" size="sm" onClick={() => setActiveSection("workflows")}>
+                الانتقال إلى قسم المسارات
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // ── If a template is selected, show its detail view ──
   if (selectedTemplate) {
     return (
       <div className="space-y-6" dir="rtl">
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            <Input
+              value={settingsSearch}
+              onChange={(e) => setSettingsSearch(e.target.value)}
+              placeholder="ابحث داخل أقسام الإعدادات..."
+            />
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {visibleSections.map((section) => (
+                <Button
+                  key={section.key}
+                  variant={activeSection === section.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setActiveSection(section.key);
+                    if (section.key !== "workflows") setSelectedTemplate(null);
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  {section.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => setSelectedTemplate(null)}>
@@ -790,9 +897,40 @@ export default function Settings() {
   // ── Templates List View ──
   return (
     <div className="space-y-6" dir="rtl">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold text-foreground">إعدادات الجهة</h1>
+        <p className="text-sm text-muted-foreground">مركز إعدادات موحّد لإدارة الجهة</p>
+      </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <Input
+            value={settingsSearch}
+            onChange={(e) => setSettingsSearch(e.target.value)}
+            placeholder="ابحث داخل أقسام الإعدادات..."
+          />
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {visibleSections.map((section) => (
+              <Button
+                key={section.key}
+                variant={activeSection === section.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setActiveSection(section.key);
+                  if (section.key !== "workflows") setSelectedTemplate(null);
+                }}
+                className="whitespace-nowrap"
+              >
+                {section.label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">الإعدادات</h1>
+          <h2 className="text-xl font-bold text-foreground">قسم المسارات</h2>
           <p className="text-sm text-muted-foreground mt-0.5">إدارة مسارات أنواع الحالات</p>
         </div>
       </div>
