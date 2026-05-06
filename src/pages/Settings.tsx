@@ -875,7 +875,7 @@ export default function Settings() {
     setEditingStepSheetOpen(true);
   };
 
-  if (activeSection !== "workflows") {
+  if (activeSection !== "workflows" && activeSection !== "cases") {
     return (
       <div className="space-y-6" dir="rtl">
         <div className="space-y-2">
