@@ -242,6 +242,23 @@ const BENEFICIARY_CONTACT_FIELDS = [
   "updated_at",
 ] as const;
 
+const ATTACHMENT_FIELDS = [
+  "id",
+  "organization_id",
+  "case_id",
+  "beneficiary_id",
+  "category",
+  "file_name",
+  "file_ext",
+  "mime_type",
+  "file_size",
+  "bucket_name",
+  "storage_path",
+  "uploaded_by_membership_id",
+  "is_private",
+  "created_at",
+] as const;
+
 // ── Hooks ──
 function useWorkflowTemplates() {
   const { currentMembership } = useOrganization();
@@ -1008,6 +1025,83 @@ export default function Settings() {
                     {item}
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          </div>
+        ) : activeSection === "attachments" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>الحقول الحالية لجدول المرفقات (attachments)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  عرض توثيقي Read-only للحقول المعتمدة حاليًا في schema فقط، بدون عرض أي مرفقات فعلية أو أسماء ملفات فعلية.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ATTACHMENT_FIELDS.map((field) => (
+                    <Badge key={field} variant="secondary" className="font-mono text-xs">
+                      {field}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>العلاقات الحالية المرتبطة بالمرفقات</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="rounded-md border p-3">- <span className="font-mono">attachments.beneficiary_id</span> ← <span className="font-mono">beneficiaries.id</span></div>
+                <div className="rounded-md border p-3">- <span className="font-mono">attachments.case_id</span> ← <span className="font-mono">cases.id</span></div>
+                <div className="rounded-md border p-3">- <span className="font-mono">attachments.organization_id</span> ← <span className="font-mono">organizations.id</span></div>
+                <div className="rounded-md border p-3">- <span className="font-mono">attachments.uploaded_by_membership_id</span> ← <span className="font-mono">memberships.id</span></div>
+                <div className="rounded-md border p-3">- <span className="font-mono">cases.beneficiary_id</span> ← <span className="font-mono">beneficiaries.id</span> (لسياق الربط)</div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>سياسات RLS الحالية للمرفقات (ملخص)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="rounded-md border p-3">- <strong>SELECT:</strong> للأعضاء ضمن المنظمة مع شرط ارتباط المرفق بحالة أو مستفيد داخل المنظمة.</div>
+                <div className="rounded-md border p-3">- <strong>INSERT:</strong> للأعضاء ضمن المنظمة مع تحقق <span className="font-mono">uploaded_by_membership_id</span>.</div>
+                <div className="rounded-md border p-3">- <strong>UPDATE:</strong> لأعضاء المنظمة.</div>
+                <div className="rounded-md border p-3">- <strong>DELETE:</strong> للإداري التنظيمي فقط.</div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>غير مدعوم حاليًا (يتطلب مرحلة قاعدة بيانات لاحقة)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {[
+                  "أنواع المرفقات الرسمية.",
+                  "الصيغ المسموحة.",
+                  "الحد الأقصى للحجم.",
+                  "إلزامية المرفقات حسب نوع الحالة.",
+                  "صلاحيات عرض/تحميل تفصيلية.",
+                  "قواعد ربط المرفق بحالة أو مستفيد.",
+                  "ترتيب/تفعيل/تعطيل التصنيفات.",
+                ].map((item) => (
+                  <div key={item} className="rounded-md border border-dashed p-3 text-muted-foreground">
+                    {item}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>توصية مستقبلية مختصرة</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border border-dashed border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200">
+                  يتطلب مرحلة لاحقة: اعتماد نموذج إعدادات مرفقات رسمي على مستوى قاعدة البيانات قبل تفعيل الإعدادات القابلة للتعديل.
+                </div>
               </CardContent>
             </Card>
           </div>
