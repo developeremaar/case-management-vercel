@@ -214,6 +214,34 @@ const STEP_TYPE_LABELS: Record<string, string> = {
   close: "إغلاق",
 };
 
+const BENEFICIARY_FIELDS = [
+  "id",
+  "organization_id",
+  "full_name",
+  "mobile",
+  "national_id",
+  "gender",
+  "birth_date",
+  "city",
+  "district",
+  "address",
+  "notes",
+  "created_at",
+  "updated_at",
+] as const;
+
+const BENEFICIARY_CONTACT_FIELDS = [
+  "id",
+  "beneficiary_id",
+  "name",
+  "relation_type",
+  "mobile",
+  "email",
+  "notes",
+  "created_at",
+  "updated_at",
+] as const;
+
 // ── Hooks ──
 function useWorkflowTemplates() {
   const { currentMembership } = useOrganization();
@@ -913,6 +941,76 @@ export default function Settings() {
           <OrganizationOverviewSection organization={organizationInfo} />
         ) : activeSection === "branches_departments" && orgId ? (
           <BranchesDepartmentsSection orgId={orgId} branches={branches || []} departments={organizationDepartments || []} />
+        ) : activeSection === "beneficiaries" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>الحقول الحالية للمستفيدين (beneficiaries)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  هذا القسم توثيقي فقط داخل الإعدادات، ويعرض الحقول المعتمدة حاليًا في قاعدة البيانات بدون أي بيانات فعلية.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {BENEFICIARY_FIELDS.map((field) => (
+                    <Badge key={field} variant="secondary" className="font-mono text-xs">
+                      {field}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>حقول جهات اتصال المستفيد (beneficiary_contacts)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {BENEFICIARY_CONTACT_FIELDS.map((field) => (
+                    <Badge key={field} variant="secondary" className="font-mono text-xs">
+                      {field}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="rounded-md border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200">
+                  <strong>ملاحظة:</strong> الحقل <span className="font-mono">relation_type</span> حاليًا نص حر، ولا يوجد له جدول إعدادات معياري مستقل في الـ schema الحالية.
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>العلاقات الحالية المرتبطة بالمستفيدين</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="rounded-md border p-3">- <span className="font-mono">beneficiary_contacts.beneficiary_id</span> مرتبط بجدول <span className="font-mono">beneficiaries</span>.</div>
+                <div className="rounded-md border p-3">- <span className="font-mono">cases.beneficiary_id</span> يربط الحالات بالمستفيد.</div>
+                <div className="rounded-md border p-3">- <span className="font-mono">attachments</span> قد ترتبط بالمستفيد مباشرة عبر <span className="font-mono">beneficiary_id</span> أو بالحالة عبر <span className="font-mono">case_id</span>.</div>
+                <div className="rounded-md border p-3">- <span className="font-mono">activity_logs</span> لا تحتوي FK مباشر مع المستفيد، والربط منطقي عبر <span className="font-mono">entity_type/entity_id</span>.</div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>غير مدعوم حاليًا (يتطلب مرحلة قاعدة بيانات لاحقة)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {[
+                  "أنواع جهات الاتصال المعيارية.",
+                  "تصنيفات المستفيدين.",
+                  "قواعد منع التكرار.",
+                  "تنبيه الدعم السابق.",
+                  "قواعد احتساب إجمالي الدعم والصرف.",
+                  "إعدادات حقول المستفيد القابلة للتخصيص.",
+                ].map((item) => (
+                  <div key={item} className="rounded-md border border-dashed p-3 text-muted-foreground">
+                    {item}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <Card>
             <CardHeader>
