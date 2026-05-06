@@ -67,9 +67,13 @@ interface StepDefinition {
 
 interface CaseType {
   id: string;
+  organization_id: string;
   name: string;
   code: string;
-  organization_id: string;
+  description: string | null;
+  requires_amount: boolean;
+  requires_beneficiary: boolean;
+  is_active: boolean;
 }
 
 interface Department {
@@ -276,7 +280,7 @@ function useCaseTypesLookup() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("case_types")
-        .select("id, name, code, organization_id")
+        .select("id, organization_id, name, code, description, requires_amount, requires_beneficiary, is_active")
         .eq("organization_id", orgId!)
         .order("name");
       if (error) throw error;
@@ -1165,7 +1169,7 @@ export default function Settings() {
 
       {activeSection === "cases" ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card><CardHeader><CardTitle>أنواع الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(caseTypes || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>أنواع الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(caseTypes || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-2"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div><div className="text-muted-foreground text-xs">{row.description || "لا يوجد وصف"}</div><div className="flex flex-wrap items-center gap-2"><Badge variant={row.requires_amount ? "default" : "secondary"}>{row.requires_amount ? "يتطلب مبلغًا" : "لا يتطلب مبلغًا"}</Badge><Badge variant={row.requires_beneficiary ? "default" : "secondary"}>{row.requires_beneficiary ? "يتطلب مستفيدًا" : "لا يتطلب مستفيدًا"}</Badge><Badge variant={row.is_active ? "default" : "outline"}>{row.is_active ? "نشط" : "غير نشط"}</Badge></div></div>)}</CardContent></Card>
           <Card><CardHeader><CardTitle>مصادر الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(caseSources || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
           <Card><CardHeader><CardTitle>أولويات الحالات</CardTitle></CardHeader><CardContent className="space-y-2">{(casePriorities || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium">{row.name}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
           <Card><CardHeader><CardTitle>حالات الحالة</CardTitle></CardHeader><CardContent className="space-y-2">{(caseStatuses || []).map((row) => <div key={row.id} className="rounded-md border p-3 text-sm space-y-1"><div className="font-medium flex items-center gap-2">{row.name}{row.is_terminal ? <Badge variant="secondary">نهائية</Badge> : null}</div><div className="text-muted-foreground font-mono text-xs">{row.code}</div></div>)}</CardContent></Card>
